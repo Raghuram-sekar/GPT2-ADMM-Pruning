@@ -7,6 +7,8 @@
 - [Key Innovation](#🔬-key-innovation)
 - [Performance Highlights](#📊-performance-highlights)
 - [Architecture](#🏗️-architecture)
+- [Methodology & Technical Details](#⚙️-methodology--technical-details)
+- [Project Structure](#📂-project-structure)
 - [Tech Stack](#🧱-tech-stack)
 - [Quick Start](#💻-quick-start)
 
@@ -49,6 +51,32 @@ graph TD
 
 ---
 
+## ⚙️ Methodology & Technical Details
+### ADMM Constrained Formulation
+We formulate structural model pruning as an optimization problem under sparsity constraints. Let \(\mathbf{W}\) be the weight tensor of GPT-2 layers. The objective is:
+$$\min_{\mathbf{W}} f(\mathbf{W}) + g(\mathbf{Z}) \quad \text{subject to} \quad \mathbf{W} - \mathbf{Z} = \mathbf{0}$$
+where \(f(\mathbf{W})\) represents the standard cross-entropy loss of the model and \(g(\mathbf{Z})\) is an indicator function enforcing the L0 sparsity constraint (ensuring \(\|\mathbf{Z}\|_0 \le N\)).
+
+### Augmented Lagrangian Optimization
+We formulate the augmented Lagrangian for this problem as:
+$$\mathcal{L}_\rho(\mathbf{W}, \mathbf{Z}, \mathbf{U}) = f(\mathbf{W}) + g(\mathbf{Z}) + \frac{\rho}{2}\|\mathbf{W} - \mathbf{Z} + \mathbf{U}\|_2^2 - \frac{\rho}{2}\|\mathbf{U}\|_2^2$$
+where \(\mathbf{U}\) is the dual variable and \(ho\) is the penalty parameter. The ADMM updates proceed iteratively:
+1. **W-step:** \(\mathbf{W}^{k+1} = \arg\min_{\mathbf{W}} f(\mathbf{W}) + \frac{\rho}{2}\|\mathbf{W} - \mathbf{Z}^k + \mathbf{U}^k\|_2^2\) (solved via PyTorch backpropagation fine-tuning).
+2. **Z-step:** \(\mathbf{Z}^{k+1} = \Pi_S (\mathbf{W}^{k+1} + \mathbf{U}^k)\) (projection onto the L0 ball by retaining the top 60% largest weights).
+3. **U-step:** \(\mathbf{U}^{k+1} = \mathbf{U}^k + \mathbf{W}^{k+1} - \mathbf{Z}^{k+1}\).
+
+---
+
+## 📂 Project Structure
+```
+gpt2_admm_pruning/
+├── GPT2_ADMM_Pruning_Implementation.ipynb   # Main PyTorch pruning pipeline
+├── mat_live_scripts/                       # MATLAB convergence curves
+└── models_simulink/                        # Simulink state-space models
+```
+
+---
+
 ## 🧱 Tech Stack
 - PyTorch for GPT-2 attention layer pruning and weight masking
 - MATLAB Live Scripts for convergence optimization calculations
@@ -64,9 +92,5 @@ git clone https://github.com/Raghuram-sekar/GPT2-ADMM-Pruning.git
 cd GPT2-ADMM-Pruning
 
 # Execute local setup commands:
-# ADMM Optimization Formulation:
-# min_W f(W) + g(Z) subject to W - Z = 0
-# L_rho(W, Z, U) = f(W) + g(Z) + (rho/2)*||W - Z + U||_2^2 - (rho/2)*||U||_2^2
-
 jupyter notebook GPT2_ADMM_Pruning_Implementation.ipynb
 ```
